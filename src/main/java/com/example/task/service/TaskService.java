@@ -2,39 +2,42 @@ package com.example.task.service;
 
 import com.example.task.model.Task;
 import com.example.task.repository.TaskRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class TaskService {
 
-    @Autowired
-    private TaskRepository taskRepository;
+    private final TaskRepository taskRepository;
 
     public List<Task> getAllTasks() {
-        System.out.println("fetching all tasks");
+        log.info("Получение всех задач");
         return taskRepository.findAll();
     }
 
     public Task getTaskById(Long id) {
-        System.out.println("fetching task by id: " + id);
-        return taskRepository.findById(id);
+        log.info("Получение задачи по id {}", id);
+        return taskRepository.findById(id).orElse(null);
     }
 
-    public void createTask(Task task) {
-        System.out.println("task created: " + task.getName());
-        taskRepository.save(task);
+    public Task createTask(Task task) {
+        log.info("Создание задачи {}", task.getName());
+        return taskRepository.save(task);
     }
 
-    public void updateTask(Long id, Task task) {
-        System.out.println("task updated: " + id);
-        taskRepository.update(id, task);
+    public Task updateTask(Long id, Task task) {
+        log.info("Обновление задачи {}", id);
+        task.setId(id);
+        return taskRepository.save(task);
     }
 
     public void deleteTask(Long id) {
-        System.out.println("task deleted: " + id);
+        log.info("Удаление задачи {}", id);
         taskRepository.deleteById(id);
     }
 }
