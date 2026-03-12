@@ -1,11 +1,16 @@
 package com.example.task.service;
 
+import com.example.task.dto.task.TaskRequest;
+import com.example.task.dto.task.TaskResponse;
+import com.example.task.mapper.MapperDTO;
+import com.example.task.model.Status;
 import com.example.task.model.Task;
 import com.example.task.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -14,26 +19,49 @@ import java.util.List;
 public class TaskService {
 
     private final TaskRepository taskRepository;
+    private final MapperDTO mapper;
 
-    public List<Task> getAllTasks() {
+    public List<TaskResponse> getAllTasks() {
         log.info("Получение всех задач");
-        return taskRepository.findAll();
+        return taskRepository.findAll().stream().map(mapper::toTaskResponse).toList();
     }
 
-    public Task getTaskById(Long id) {
+    public TaskResponse getTaskById(Long id) {
         log.info("Получение задачи по id {}", id);
-        return taskRepository.findById(id).orElse(null);
+        return taskRepository.findById(id).map(mapper::toTaskResponse).orElse(null);
     }
 
-    public Task createTask(Task task) {
-        log.info("Создание задачи {}", task.getName());
-        return taskRepository.save(task);
+    public TaskResponse createTask(TaskRequest taskRequest) {
+        log.info("Создание задачи {}", taskRequest.name());
+        Task task = mapper.toTask(taskRequest);
+        task.setTimeStartTask(LocalDateTime.now());
+        if (task.getStatus() == null) {
+            task.setStatus(Status.TODO);
+        }
+        Task saved = taskRepository.save(task);
+        return mapper.toTaskResponse(saved);
     }
 
-    public Task updateTask(Long id, Task task) {
+    public TaskResponse updateTask(Long id, TaskRequest taskRequest) {
         log.info("Обновление задачи {}", id);
-        task.setId(id);
-        return taskRepository.save(task);
+        Task task = taskRepository.findById(id).orElse(null);
+        if (task == null) {
+            return null;
+        }
+        if (taskRequest.name() != null) {
+            task.setName(taskRequest.name());
+        }
+        if (taskRequest.description() != null) {
+            task.setDescription(taskRequest.description());
+        }
+        if (taskRequest.status() != null) {
+            task.setStatus(taskRequest.status());
+        }
+        if (taskRequest.timeEndTask() != null) {
+            task.setTimeEndTask(taskRequest.timeEndTask());
+        }
+        Task updated = taskRepository.save(task);
+        return mapper.toTaskResponse(updated);
     }
 
     public void deleteTask(Long id) {

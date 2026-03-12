@@ -3,6 +3,8 @@ package com.example.task.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "tasks")
 @Getter
@@ -20,5 +22,10 @@ public class Task {
 
     private String description;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private Status status;
+
+    private LocalDateTime timeStartTask;
+
+    private LocalDateTime timeEndTask;
 }
