@@ -3,6 +3,7 @@ package com.example.task.controller;
 import com.example.task.dto.task.TaskRequest;
 import com.example.task.dto.task.TaskResponse;
 import com.example.task.service.TaskService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -30,13 +31,13 @@ public class TaskController {
     }
 
     @PostMapping
-    public TaskResponse createTask(@RequestBody TaskRequest taskRequest) {
+    public TaskResponse createTask(@Valid @RequestBody TaskRequest taskRequest) {
         log.info("POST /tasks");
         return taskService.createTask(taskRequest);
     }
 
     @PutMapping("/{id}")
-    public TaskResponse updateTask(@PathVariable Long id, @RequestBody TaskRequest taskRequest) {
+    public TaskResponse updateTask(@PathVariable Long id, @Valid @RequestBody TaskRequest taskRequest) {
         log.info("PUT /tasks/{}", id);
         return taskService.updateTask(id, taskRequest);
     }

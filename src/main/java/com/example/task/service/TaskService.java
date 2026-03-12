@@ -2,6 +2,7 @@ package com.example.task.service;
 
 import com.example.task.dto.task.TaskRequest;
 import com.example.task.dto.task.TaskResponse;
+import com.example.task.exception.ContentNotFoundException;
 import com.example.task.mapper.MapperDTO;
 import com.example.task.model.Status;
 import com.example.task.model.Task;
@@ -28,7 +29,8 @@ public class TaskService {
 
     public TaskResponse getTaskById(Long id) {
         log.info("Получение задачи по id {}", id);
-        return taskRepository.findById(id).map(mapper::toTaskResponse).orElse(null);
+        return taskRepository.findById(id).map(mapper::toTaskResponse)
+                .orElseThrow(() -> new ContentNotFoundException("Task with id " + id + " not found"));
     }
 
     public TaskResponse createTask(TaskRequest taskRequest) {
@@ -44,10 +46,8 @@ public class TaskService {
 
     public TaskResponse updateTask(Long id, TaskRequest taskRequest) {
         log.info("Обновление задачи {}", id);
-        Task task = taskRepository.findById(id).orElse(null);
-        if (task == null) {
-            return null;
-        }
+        Task task = taskRepository.findById(id)
+                .orElseThrow(() -> new ContentNotFoundException("Task with id " + id + " not found"));
         if (taskRequest.name() != null) {
             task.setName(taskRequest.name());
         }
@@ -66,6 +66,9 @@ public class TaskService {
 
     public void deleteTask(Long id) {
         log.info("Удаление задачи {}", id);
+        if (!taskRepository.existsById(id)) {
+            throw new ContentNotFoundException("Task with id " + id + " not found");
+        }
         taskRepository.deleteById(id);
     }
 }
