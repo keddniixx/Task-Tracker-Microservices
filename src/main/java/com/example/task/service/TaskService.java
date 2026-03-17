@@ -9,6 +9,7 @@ import com.example.task.model.Task;
 import com.example.task.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -22,11 +23,13 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final MapperDTO mapper;
 
+    @Cacheable(cacheNames = "tasksList")
     public List<TaskResponse> getAllTasks() {
         log.info("Получение всех задач");
         return taskRepository.findAll().stream().map(mapper::toTaskResponse).toList();
     }
 
+    @Cacheable(cacheNames = "task", key = "#id")
     public TaskResponse getTaskById(Long id) {
         log.info("Получение задачи по id {}", id);
         return taskRepository.findById(id).map(mapper::toTaskResponse)

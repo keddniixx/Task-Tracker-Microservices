@@ -8,3 +8,14 @@ services:
       POSTGRES_DB: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_USERNAME: postgres
+
+  redis:
+    container_name: rs
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  redis-data:
