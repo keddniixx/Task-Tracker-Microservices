@@ -30,6 +30,12 @@ public class TaskController {
         return taskService.getTaskById(id);
     }
 
+    @GetMapping("/random")
+    public TaskResponse randomTask() {
+        log.info("GET /tasks/random");
+        return taskService.randomTask();
+    }
+
     @PostMapping
     public TaskResponse createTask(@Valid @RequestBody TaskRequest taskRequest) {
         log.info("POST /tasks");
