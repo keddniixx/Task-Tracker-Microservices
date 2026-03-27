@@ -6,10 +6,12 @@ import com.example.task.exception.ContentNotFoundException;
 import com.example.task.mapper.MapperDTO;
 import com.example.task.model.Status;
 import com.example.task.model.Task;
+import com.example.task.model.UserLogin;
 import com.example.task.repository.TaskRedisRepository;
 import com.example.task.repository.TaskRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +27,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final TaskRedisRepository taskRedisRepository;
     private final MapperDTO mapper;
+    private final RedisInvalidation redisInvalidation;
 
     @Cacheable(cacheNames = "tasksList")
     public List<TaskResponse> getAllTasks() {
@@ -39,7 +42,7 @@ public class TaskService {
                 .orElseThrow(() -> new ContentNotFoundException("Task with id " + id + " not found"));
     }
 
-    public TaskResponse createTask(TaskRequest taskRequest) {
+    public TaskResponse createTask(TaskRequest taskRequest, UserLogin userLogin) {
         log.info("Создание задачи {}", taskRequest.name());
         Task task = mapper.toTask(taskRequest);
         task.setTimeStartTask(LocalDateTime.now());
@@ -47,10 +50,12 @@ public class TaskService {
             task.setStatus(Status.TODO);
         }
         Task saved = taskRepository.save(task);
+        redisInvalidation.cacheEvictList(userLogin);
         return mapper.toTaskResponse(saved);
     }
 
-    public TaskResponse updateTask(Long id, TaskRequest taskRequest) {
+    @CacheEvict(cacheNames = "task", key = "#id")
+    public TaskResponse updateTask(Long id, TaskRequest taskRequest, UserLogin userLogin) {
         log.info("Обновление задачи {}", id);
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new ContentNotFoundException("Task with id " + id + " not found"));
@@ -66,15 +71,18 @@ public class TaskService {
         if (taskRequest.timeEndTask() != null) {
             task.setTimeEndTask(taskRequest.timeEndTask());
         }
+        redisInvalidation.cacheEvictList(userLogin);
         Task updated = taskRepository.save(task);
         return mapper.toTaskResponse(updated);
     }
 
-    public void deleteTask(Long id) {
+    @CacheEvict(cacheNames = "task", key = "#id")
+    public void deleteTask(Long id, UserLogin userLogin) {
         log.info("Удаление задачи {}", id);
         if (!taskRepository.existsById(id)) {
             throw new ContentNotFoundException("Task with id " + id + " not found");
         }
+        redisInvalidation.cacheEvictList(userLogin);
         taskRepository.deleteById(id);
     }
 
