@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,6 +29,7 @@ public class TaskService {
     private final TaskRedisRepository taskRedisRepository;
     private final MapperDTO mapper;
     private final RedisInvalidation redisInvalidation;
+    private final KafkaService kafkaService;
 
     @Cacheable(cacheNames = "tasksList")
     public List<TaskResponse> getAllTasks() {
@@ -42,6 +44,7 @@ public class TaskService {
                 .orElseThrow(() -> new ContentNotFoundException("Task with id " + id + " not found"));
     }
 
+    @Transactional
     public TaskResponse createTask(TaskRequest taskRequest, UserLogin userLogin) {
         log.info("Создание задачи {}", taskRequest.name());
         Task task = mapper.toTask(taskRequest);
@@ -51,9 +54,11 @@ public class TaskService {
         }
         Task saved = taskRepository.save(task);
         redisInvalidation.cacheEvictList(userLogin);
+        kafkaService.sendTaskToKafka(saved);
         return mapper.toTaskResponse(saved);
     }
 
+    @Transactional
     @CacheEvict(cacheNames = "task", key = "#id")
     public TaskResponse updateTask(Long id, TaskRequest taskRequest, UserLogin userLogin) {
         log.info("Обновление задачи {}", id);
@@ -76,6 +81,7 @@ public class TaskService {
         return mapper.toTaskResponse(updated);
     }
 
+    @Transactional
     @CacheEvict(cacheNames = "task", key = "#id")
     public void deleteTask(Long id, UserLogin userLogin) {
         log.info("Удаление задачи {}", id);
