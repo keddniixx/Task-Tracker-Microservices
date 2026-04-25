@@ -9,6 +9,16 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USERNAME: postgres
 
+  postgres-security:
+    container_name: db
+    image: postgres:latest
+    ports:
+      - "5001:5432"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USERNAME: postgres
+
   postgres-notification:
     container_name: exactlyonce
     image: postgres:latest
