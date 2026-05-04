@@ -92,6 +92,12 @@ public class TaskService {
         taskRepository.deleteById(id);
     }
 
+    public void sendSummary() {
+        List<Task> tasks = taskRepository.findAll();
+        log.info("Отправка сводки для задач {}", tasks);
+        kafkaService.sendListTaskToKafka(tasks.stream().map(mapper::toTaskDTO).toList());
+    }
+
     public TaskResponse randomTask() {
         Random random = new Random();
         long count = taskRepository.count();

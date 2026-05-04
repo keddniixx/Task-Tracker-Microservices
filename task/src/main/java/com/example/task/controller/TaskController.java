@@ -37,6 +37,12 @@ public class TaskController {
         return taskService.randomTask();
     }
 
+    @GetMapping("/summary")
+    public void sendSummary() {
+        log.info("GET /tasks/summary");
+        taskService.sendSummary();
+    }
+
     @PostMapping
     public TaskResponse createTask(@Valid @RequestBody TaskRequest taskRequest) {
         log.info("POST /tasks");
