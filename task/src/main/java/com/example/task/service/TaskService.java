@@ -1,18 +1,25 @@
 package com.example.task.service;
 
+import com.example.task.dto.task.TaskDTO;
 import com.example.task.dto.task.TaskRequest;
 import com.example.task.dto.task.TaskResponse;
 import com.example.task.exception.ContentNotFoundException;
 import com.example.task.mapper.MapperDTO;
+import com.example.task.model.OutboxEvent;
 import com.example.task.model.Status;
 import com.example.task.model.Task;
 import com.example.task.model.UserLogin;
+import com.example.task.repository.OutboxEventRepository;
 import com.example.task.repository.TaskRedisRepository;
 import com.example.task.repository.TaskRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,9 +34,11 @@ public class TaskService {
 
     private final TaskRepository taskRepository;
     private final TaskRedisRepository taskRedisRepository;
+    private final OutboxEventRepository outboxEventRepository;
     private final MapperDTO mapper;
     private final RedisInvalidation redisInvalidation;
     private final KafkaService kafkaService;
+    private final ObjectMapper objectMapper;
 
     @Cacheable(cacheNames = "tasksList")
     public List<TaskResponse> getAllTasks() {
@@ -54,7 +63,21 @@ public class TaskService {
         }
         Task saved = taskRepository.save(task);
         redisInvalidation.cacheEvictList(userLogin);
-        kafkaService.sendTaskToKafka(saved);
+
+        try {
+            TaskDTO taskDTO = mapper.toTaskDTO(saved);
+            OutboxEvent outboxEvent = OutboxEvent.builder()
+                    .aggregateType("Task")
+                    .aggregateId(String.valueOf(saved.getId()))
+                    .eventType("TASK_CREATED")
+                    .payload(objectMapper.writeValueAsString(taskDTO))
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            outboxEventRepository.save(outboxEvent);
+        } catch (JsonProcessingException e) {
+            log.error("Error creating outbox event for task {}", saved.getId(), e);
+        }
+
         return mapper.toTaskResponse(saved);
     }
 
@@ -93,9 +116,16 @@ public class TaskService {
     }
 
     public void sendSummary() {
-        List<Task> tasks = taskRepository.findAll();
-        log.info("Отправка сводки для задач {}", tasks);
-        kafkaService.sendListTaskToKafka(tasks.stream().map(mapper::toTaskDTO).toList());
+        int page = 0;
+        int size = 100;
+        Page<Task> taskPage;
+        do {
+            taskPage = taskRepository.findAll(PageRequest.of(page, size));
+            List<TaskDTO> dtos = taskPage.getContent().stream().map(mapper::toTaskDTO).toList();
+            kafkaService.sendListTaskToKafka(dtos);
+            page++;
+        } while (taskPage.hasNext());
+        log.info("Батевая отправка сводки завершена");
     }
 
     public TaskResponse randomTask() {
