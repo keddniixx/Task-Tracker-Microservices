@@ -1,0 +1,11 @@
+### CreateTask
+POST http://localhost:8222/api/v1/task
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJVc2VyMyIsInJvbGUiOiJObyBST0xFIiwiaWF0IjoxNzUwMTg1NjEwLCJleHAiOjE3NTAyMjE2MTB9.ec6ShcYDtR57Z19__k7AFiCIVo9XrAzhu6QknXleuBM
+Content-Type: application/json
+
+{
+  "name": "Задача юзера 1",
+  "description": "Описание",
+  "timeEndTask": "2025-06-17T00:00:00",
+  "status":"TODO"
+}

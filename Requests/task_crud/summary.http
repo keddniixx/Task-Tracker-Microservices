@@ -1,0 +1,3 @@
+### List Tasks Kafka
+GET http://localhost:8222/api/v1/task/summary
+Authorization: Bearer {{token}}

@@ -49,4 +49,56 @@ public class KafkaConsumerConfig {
         containerFactory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
         return containerFactory;
     }
+
+    @Bean
+    public ConsumerFactory<String, TaskDTO> consumerFactory2(ObjectMapper objectMapper) {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "task2");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        JsonDeserializer<TaskDTO> jsonDeserializer = new JsonDeserializer<>(TaskDTO.class, objectMapper);
+
+        return new DefaultKafkaConsumerFactory<>(
+                props,
+                new StringDeserializer(),
+                jsonDeserializer
+        );
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, TaskDTO> kafkaListenerContainerFactory2(
+            ConsumerFactory<String, TaskDTO> consumerFactory2
+    ) {
+        var containerFactory = new ConcurrentKafkaListenerContainerFactory<String, TaskDTO>();
+        containerFactory.setConcurrency(1);
+        containerFactory.setConsumerFactory(consumerFactory2);
+        containerFactory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
+        return containerFactory;
+    }
+
+    @Bean
+    public ConsumerFactory<String, TaskDTO> consumerFactory3(ObjectMapper objectMapper) {
+        Map<String, Object> props = new HashMap<>();
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.GROUP_ID_CONFIG, "task3");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        JsonDeserializer<TaskDTO> jsonDeserializer = new JsonDeserializer<>(TaskDTO.class, objectMapper);
+
+        return new DefaultKafkaConsumerFactory<>(
+                props,
+                new StringDeserializer(),
+                jsonDeserializer
+        );
+    }
+
+    @Bean
+    public ConcurrentKafkaListenerContainerFactory<String, TaskDTO> kafkaListenerContainerFactory3(
+            ConsumerFactory<String, TaskDTO> consumerFactory3
+    ) {
+        var containerFactory = new ConcurrentKafkaListenerContainerFactory<String, TaskDTO>();
+        containerFactory.setConcurrency(1);
+        containerFactory.setConsumerFactory(consumerFactory3);
+        containerFactory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
+        return containerFactory;
+    }
 }

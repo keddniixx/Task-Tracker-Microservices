@@ -32,14 +32,14 @@ public class OutboxEventPoller {
         if (events.isEmpty()) {
             return;
         }
-        log.info("Обработка событий Outbox: count={}", events.size());
+        log.info("Обработка событий");
         for (OutboxEvent event : events) {
             try {
                 TaskDTO taskDTO = objectMapper.readValue(event.getPayload(), TaskDTO.class);
                 String eventKey = event.getId() != null ? event.getId().toString() : event.getAggregateId();
                 kafkaTemplate.send("task", eventKey, taskDTO);
             } catch (JsonProcessingException e) {
-                log.error("Error parsing outbox payload", e);
+                throw new RuntimeException(e);
             }
         }
         outboxEventRepository.deleteAllInBatch(events);

@@ -4,60 +4,59 @@ import com.example.task.dto.task.TaskRequest;
 import com.example.task.dto.task.TaskResponse;
 import com.example.task.model.UserLogin;
 import com.example.task.service.TaskService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Slf4j
-@RestController
-@RequestMapping("/tasks")
 @RequiredArgsConstructor
+@RestController
+@RequestMapping("/api/v1/task")
 public class TaskController {
 
     private final TaskService taskService;
 
-    @GetMapping
-    public List<TaskResponse> getAllTasks() {
-        log.info("GET /tasks");
-        return taskService.getAllTasks();
-    }
-
-    @GetMapping("/{id}")
-    public TaskResponse getTaskById(@PathVariable Long id) {
-        log.info("GET /tasks/{}", id);
-        return taskService.getTaskById(id);
-    }
-
-    @GetMapping("/random")
-    public TaskResponse randomTask() {
-        log.info("GET /tasks/random");
-        return taskService.randomTask();
-    }
-
     @GetMapping("/summary")
-    public void sendSummary() {
-        log.info("GET /tasks/summary");
+    public void scheduleSendSummery() {
         taskService.sendSummary();
     }
 
+    @GetMapping
+    public ResponseEntity<List<TaskResponse>> lookAllUserTasks(@AuthenticationPrincipal UserLogin userLogin) {
+        return ResponseEntity.ok().body(taskService.lookAllUserTasks(userLogin));
+    }
+
+    @GetMapping("/{taskId}")
+    public ResponseEntity<TaskResponse> lookOneUserTasks(@PathVariable("taskId") Long taskId,
+                                                         @AuthenticationPrincipal UserLogin userLogin) {
+        return ResponseEntity.ok().body(taskService.lookOneUserTasks(userLogin, taskId));
+    }
+
     @PostMapping
-    public TaskResponse createTask(@Valid @RequestBody TaskRequest taskRequest) {
-        log.info("POST /tasks");
-        return taskService.createTask(taskRequest, new UserLogin("default", "ROLE_USER"));
+    public ResponseEntity<TaskResponse> createTask(@RequestBody TaskRequest taskRequest,
+                                                   @AuthenticationPrincipal UserLogin userLogin) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(taskService.createTask(taskRequest, userLogin));
     }
 
-    @PutMapping("/{id}")
-    public TaskResponse updateTask(@PathVariable Long id, @Valid @RequestBody TaskRequest taskRequest) {
-        log.info("PUT /tasks/{}", id);
-        return taskService.updateTask(id, taskRequest, new UserLogin("default", "ROLE_USER"));
+    @PutMapping("/edit/{taskId}")
+    public ResponseEntity<TaskResponse> editTask(@PathVariable("taskId") Long taskId,
+                                                 @RequestBody TaskRequest taskRequest,
+                                                 @AuthenticationPrincipal UserLogin userLogin) {
+        return ResponseEntity.ok(taskService.editTask(taskRequest, userLogin, taskId));
     }
 
-    @DeleteMapping("/{id}")
-    public void deleteTask(@PathVariable Long id) {
-        log.info("DELETE /tasks/{}", id);
-        taskService.deleteTask(id, new UserLogin("default", "ROLE_USER"));
+    @DeleteMapping("/remove/{taskId}")
+    public ResponseEntity<TaskResponse> removeTask(@PathVariable("taskId") Long taskId,
+                                                   @AuthenticationPrincipal UserLogin userLogin) {
+        taskService.removeTask(taskId, userLogin);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @GetMapping("/random")
+    public ResponseEntity<TaskResponse> randomTask() {
+        return ResponseEntity.ok().body(taskService.randomTask());
     }
 }

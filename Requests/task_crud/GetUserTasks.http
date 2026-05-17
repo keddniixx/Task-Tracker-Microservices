@@ -1,0 +1,3 @@
+### Tasks
+GET http://localhost:8222/api/v1/task
+Authorization: Bearer {{token}}

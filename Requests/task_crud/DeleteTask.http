@@ -1,0 +1,2 @@
+DELETE http://localhost:8222/api/v1/task/remove/11013
+Authorization: Bearer {{token}}

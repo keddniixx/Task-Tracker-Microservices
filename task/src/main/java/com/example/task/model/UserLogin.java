@@ -12,4 +12,8 @@ import lombok.NoArgsConstructor;
 public class UserLogin {
     private String username;
     private String role;
+
+    public UserLogin(String username) {
+        this.username = username;
+    }
 }

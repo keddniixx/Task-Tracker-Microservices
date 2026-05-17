@@ -1,0 +1,11 @@
+### CreateTask
+POST http://localhost:8222/api/v1/task
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJVc2VyMiIsInJvbGUiOiJObyBST0xFIiwiaWF0IjoxNzUwNTA0NjUzLCJleHAiOjE3NTA1NDA2NTN9.sZr9aXv9QpIaTFWTRpAt18z6kwnymqhKja6b_ThEuX8
+Content-Type: application/json
+
+{
+  "name": "New tema 1",
+  "description": "Описание",
+  "timeEndTask": "2025-06-17T00:00:00",
+  "status":"TODO"
+}

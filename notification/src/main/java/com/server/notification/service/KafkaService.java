@@ -33,6 +33,40 @@ public class KafkaService {
             log.warn("Дубликат сообщения {}", messageKey);
             return;
         }
-        log.info("Получена задача в notification service {}", task);
+        log.info("Получена задача {}", task);
+    }
+
+    @KafkaListener(topics = "task", containerFactory = "kafkaListenerContainerFactory2")
+    @Transactional
+    public void consumeTask2(TaskDTO task, @Header(KafkaHeaders.RECEIVED_KEY) String messageKey) {
+        if (messageKey == null || messageKey.isBlank()) {
+            log.warn("Ошибочный ключ {}", messageKey);
+            return;
+        }
+        try {
+            ProcessedEvent processedEvent = ProcessedEvent.builder().eventId(messageKey).build();
+            processedEventRepository.save(processedEvent);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Дубликат сообщения {}", messageKey);
+            return;
+        }
+        log.info("Получена задача {}", task);
+    }
+
+    @KafkaListener(topics = "task", containerFactory = "kafkaListenerContainerFactory3")
+    @Transactional
+    public void consumeTask3(TaskDTO task, @Header(KafkaHeaders.RECEIVED_KEY) String messageKey) {
+        if (messageKey == null || messageKey.isBlank()) {
+            log.warn("Ошибочный ключ {}", messageKey);
+            return;
+        }
+        try {
+            ProcessedEvent processedEvent = ProcessedEvent.builder().eventId(messageKey).build();
+            processedEventRepository.save(processedEvent);
+        } catch (DataIntegrityViolationException e) {
+            log.warn("Дубликат сообщения {}", messageKey);
+            return;
+        }
+        log.info("Получена задача {}", task);
     }
 }

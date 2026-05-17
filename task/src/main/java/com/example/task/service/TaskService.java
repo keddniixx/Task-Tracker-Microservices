@@ -1,131 +1,113 @@
 package com.example.task.service;
 
-import com.example.task.dto.task.TaskDTO;
 import com.example.task.dto.task.TaskRequest;
 import com.example.task.dto.task.TaskResponse;
 import com.example.task.exception.ContentNotFoundException;
 import com.example.task.mapper.MapperDTO;
-import com.example.task.model.OutboxEvent;
 import com.example.task.model.Status;
 import com.example.task.model.Task;
+import com.example.task.model.User;
 import com.example.task.model.UserLogin;
-import com.example.task.repository.OutboxEventRepository;
 import com.example.task.repository.TaskRedisRepository;
 import com.example.task.repository.TaskRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
+import com.example.task.repository.UserRepository;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.core.task.TaskRejectedException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
+@AllArgsConstructor
+@Transactional(readOnly = true)
 public class TaskService {
 
-    private final TaskRepository taskRepository;
-    private final TaskRedisRepository taskRedisRepository;
-    private final OutboxEventRepository outboxEventRepository;
     private final MapperDTO mapper;
-    private final RedisInvalidation redisInvalidation;
+    private final TaskRepository taskRepository;
+    private final UserRepository userRepository;
     private final KafkaService kafkaService;
-    private final ObjectMapper objectMapper;
-
-    @Cacheable(cacheNames = "tasksList")
-    public List<TaskResponse> getAllTasks() {
-        log.info("Получение всех задач");
-        return taskRepository.findAll().stream().map(mapper::toTaskResponse).toList();
-    }
-
-    @Cacheable(cacheNames = "task", key = "#id")
-    public TaskResponse getTaskById(Long id) {
-        log.info("Получение задачи по id {}", id);
-        return taskRepository.findById(id).map(mapper::toTaskResponse)
-                .orElseThrow(() -> new ContentNotFoundException("Task with id " + id + " not found"));
-    }
+    private final TaskRedisRepository taskRedisRepository;
+    private final RedisInvalidation redisInvalidation;
 
     @Transactional
     public TaskResponse createTask(TaskRequest taskRequest, UserLogin userLogin) {
-        log.info("Создание задачи {}", taskRequest.name());
         Task task = mapper.toTask(taskRequest);
         task.setTimeStartTask(LocalDateTime.now());
-        if (task.getStatus() == null) {
-            task.setStatus(Status.TODO);
-        }
-        Task saved = taskRepository.save(task);
+        task.setStatus(Status.TODO);
+        User user = userRepository.findByUsername(userLogin.getUsername()).orElseThrow(() ->
+                new UsernameNotFoundException("User not found"));
+        task.setUser(user);
+        taskRepository.save(task);
         redisInvalidation.cacheEvictList(userLogin);
+        kafkaService.sendTaskToKafka(task);
+        return mapper.toTaskResponse(task);
+    }
 
-        try {
-            TaskDTO taskDTO = mapper.toTaskDTO(saved);
-            OutboxEvent outboxEvent = OutboxEvent.builder()
-                    .aggregateType("Task")
-                    .aggregateId(String.valueOf(saved.getId()))
-                    .eventType("TASK_CREATED")
-                    .payload(objectMapper.writeValueAsString(taskDTO))
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            outboxEventRepository.save(outboxEvent);
-        } catch (JsonProcessingException e) {
-            log.error("Error creating outbox event for task {}", saved.getId(), e);
-        }
-
-        return mapper.toTaskResponse(saved);
+    @Cacheable(cacheNames = "tasksList", key = "#userLogin.username", unless = "#result == null")
+    public List<TaskResponse> lookAllUserTasks(UserLogin userLogin) {
+        User user = userRepository.findByUsername(userLogin.getUsername()).orElseThrow(() ->
+                new UsernameNotFoundException("User not found"));
+        List<Task> tasks = taskRepository.findByUser(user);
+        return new ArrayList<>(tasks.stream().map(mapper::toTaskResponse).toList());
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "task", key = "#id")
-    public TaskResponse updateTask(Long id, TaskRequest taskRequest, UserLogin userLogin) {
-        log.info("Обновление задачи {}", id);
-        Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ContentNotFoundException("Task with id " + id + " not found"));
+    @CacheEvict(cacheNames = "task", key = "#taskId")
+    public void removeTask(Long taskId, UserLogin userLogin) {
+        User user = userRepository.findByUsername(userLogin.getUsername()).orElseThrow(() ->
+                new UsernameNotFoundException("User not found"));
+        List<Task> tasks = taskRepository.findByUser(user);
+        Task taskToRemove = tasks.stream()
+                .filter(task -> Objects.equals(task.getId(), taskId))
+                .findFirst().orElseThrow(ContentNotFoundException::new);
+        redisInvalidation.cacheEvictList(userLogin);
+        taskRepository.deleteById(taskToRemove.getId());
+    }
+
+    @Transactional
+    @CacheEvict(cacheNames = "task", key = "#taskId")
+    public TaskResponse editTask(TaskRequest taskRequest, UserLogin userLogin, Long taskId) {
+        User user = userRepository.findByUsername(userLogin.getUsername()).orElseThrow(() ->
+                new UsernameNotFoundException("User not found"));
+        List<Task> tasks = taskRepository.findByUser(user);
+        Task taskToEdit = tasks.stream()
+                .filter(task -> Objects.equals(task.getId(), taskId))
+                .findFirst().orElseThrow(ContentNotFoundException::new);
         if (taskRequest.name() != null) {
-            task.setName(taskRequest.name());
-        }
-        if (taskRequest.description() != null) {
-            task.setDescription(taskRequest.description());
-        }
-        if (taskRequest.status() != null) {
-            task.setStatus(taskRequest.status());
+            taskToEdit.setName(taskRequest.name());
         }
         if (taskRequest.timeEndTask() != null) {
-            task.setTimeEndTask(taskRequest.timeEndTask());
+            taskToEdit.setTimeEndTask(taskRequest.timeEndTask());
         }
-        redisInvalidation.cacheEvictList(userLogin);
-        Task updated = taskRepository.save(task);
-        return mapper.toTaskResponse(updated);
-    }
-
-    @Transactional
-    @CacheEvict(cacheNames = "task", key = "#id")
-    public void deleteTask(Long id, UserLogin userLogin) {
-        log.info("Удаление задачи {}", id);
-        if (!taskRepository.existsById(id)) {
-            throw new ContentNotFoundException("Task with id " + id + " not found");
+        if (taskRequest.status() != null) {
+            taskToEdit.setStatus(taskRequest.status());
         }
+        if (taskRequest.description() != null) {
+            taskToEdit.setDescription(taskRequest.description());
+        }
+        log.info("Изменение задачи {}", taskToEdit);
         redisInvalidation.cacheEvictList(userLogin);
-        taskRepository.deleteById(id);
+        taskRepository.save(taskToEdit);
+        return mapper.toTaskResponse(taskToEdit);
     }
 
     public void sendSummary() {
-        int page = 0;
-        int size = 100;
-        Page<Task> taskPage;
-        do {
-            taskPage = taskRepository.findAll(PageRequest.of(page, size));
-            List<TaskDTO> dtos = taskPage.getContent().stream().map(mapper::toTaskDTO).toList();
-            kafkaService.sendListTaskToKafka(dtos);
-            page++;
-        } while (taskPage.hasNext());
-        log.info("Батевая отправка сводки завершена");
+        List<Task> tasks = taskRepository.findAll();
+        Set<User> users = tasks.stream().map(Task::getUser).collect(Collectors.toSet());
+        users.stream()
+                .map(User::getTasks)
+                .forEach(
+                        userTasks -> kafkaService.sendListTaskToKafka(userTasks.stream()
+                                .map(mapper::toTaskDTO).toList()));
+        log.info("Отправка сводки {}", users);
     }
 
     public TaskResponse randomTask() {
@@ -150,10 +132,18 @@ public class TaskService {
                     return response;
                 })
                 .orElseGet(() -> {
-                    Task task = taskRepository.findById(randomLong)
-                            .orElseThrow(() -> new ContentNotFoundException("Task not found"));
+                    Task task = taskRepository.findById(randomLong).orElseThrow(() ->
+                            new UsernameNotFoundException("Task not found"));
                     taskRedisRepository.save(mapper.toRedisTask(task));
                     return mapper.toTaskResponse(task);
                 });
+    }
+
+    @Cacheable(cacheNames = "task", key = "#taskId", unless = "#result == null")
+    public TaskResponse lookOneUserTasks(UserLogin userLogin, Long taskId) {
+        User user = userRepository.findByUsername(userLogin.getUsername()).orElseThrow(() ->
+                new UsernameNotFoundException("User not found"));
+        Task task = taskRepository.findByIdAndUser(taskId, user).orElseThrow(() -> new TaskRejectedException("Task exends"));
+        return mapper.toTaskResponse(task);
     }
 }
