@@ -1,18 +1,16 @@
 package com.example.task.service;
 
 import com.example.task.model.UserLogin;
-import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.stereotype.Component;
 
-@Service
-@RequiredArgsConstructor
+@Slf4j
+@Component
 public class RedisInvalidation {
-    private final RedisTemplate<String, Object> redisTemplate;
 
+    @CacheEvict(cacheNames = "tasksList", key = "#userLogin.username")
     public void cacheEvictList(UserLogin userLogin) {
-        if (userLogin != null && userLogin.getUsername() != null) {
-            redisTemplate.delete("tasksList::" + userLogin.getUsername());
-        }
+        log.info("Очистка кэша {}", userLogin.getUsername());
     }
 }

@@ -1,0 +1,2 @@
+rootProject.name = 'task-tracker-microservices'
+include 'discovery', 'security', 'gateway', 'task', 'notification', 'scheduler'

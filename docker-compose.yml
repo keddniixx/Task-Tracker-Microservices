@@ -65,7 +65,9 @@ services:
 
   discovery:
     container_name: discovery
-    build: ./discovery
+    build:
+      context: .
+      dockerfile: ./discovery/Dockerfile
     ports:
       - "8761:8761"
     networks:
@@ -73,7 +75,9 @@ services:
 
   security:
     container_name: security
-    build: ./security
+    build:
+      context: .
+      dockerfile: ./security/Dockerfile
     ports:
       - "4005:4005"
     environment:
@@ -87,7 +91,9 @@ services:
 
   gateway:
     container_name: gateway
-    build: ./gateway
+    build:
+      context: .
+      dockerfile: ./gateway/Dockerfile
     ports:
       - "8222:8222"
     environment:
@@ -103,7 +109,9 @@ services:
 
   task:
     container_name: task
-    build: ./task
+    build:
+      context: .
+      dockerfile: ./task/Dockerfile
     ports:
       - "8080:8080"
     environment:
@@ -121,7 +129,9 @@ services:
 
   notification:
     container_name: notification
-    build: ./notification
+    build:
+      context: .
+      dockerfile: ./notification/Dockerfile
     ports:
       - "8082:8082"
     environment:
@@ -137,7 +147,9 @@ services:
 
   scheduler:
     container_name: scheduler
-    build: ./scheduler
+    build:
+      context: .
+      dockerfile: ./scheduler/Dockerfile
     ports:
       - "8081:8081"
     environment:
