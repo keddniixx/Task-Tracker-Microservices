@@ -1,20 +1,18 @@
-FROM gradle:8.13-jdk17 AS builder
+FROM gradle:8.10-jdk17 AS builder
 WORKDIR /app
 
-COPY build.gradle settings.gradle /app/
-COPY discovery/build.gradle /app/discovery/
+RUN echo "pluginManagement { repositories { maven { url 'https://maven-central.storage-download.googleapis.com/maven2/' }; mavenCentral(); gradlePluginPortal() } }" > settings.gradle
 
-WORKDIR /app/discovery
-RUN --mount=type=cache,target=/home/gradle/.gradle \
-    gradle dependencies --no-daemon
+COPY discovery/build.gradle ./build.gradle
+COPY discovery/src ./src
 
-WORKDIR /app
-COPY discovery/src /app/discovery/src
-WORKDIR /app/discovery
-RUN --mount=type=cache,target=/home/gradle/.gradle \
-    gradle bootJar --no-daemon -x test
+RUN gradle bootJar --no-daemon -x test \
+    --max-workers=2 \
+    -Dorg.gradle.internal.http.socketTimeout=120000 \
+    -Dorg.gradle.internal.http.connectionTimeout=120000
 
 FROM eclipse-temurin:17-jre
 WORKDIR /app
-COPY --from=builder /app/discovery/build/libs/*.jar app.jar
+COPY --from=builder /app/build/libs/*.jar app.jar
+EXPOSE 8761
 ENTRYPOINT ["java", "-jar", "app.jar"]

@@ -1,9 +1,4 @@
-pluginManagement {
-    repositories {
-        mavenCentral()
-        gradlePluginPortal()
-    }
-}
+
 
 plugins {
 	id 'java'
